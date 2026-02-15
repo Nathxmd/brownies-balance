@@ -1,0 +1,214 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// USER & AUTH
+enum UserRole {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String   // hashed
+  name     String
+  role     UserRole @default(CUSTOMER)
+  orders   Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// PRODUCTS
+model Product {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  description     String    @db.Text
+  price           Int       // Dalam rupiah kecil
+  compareAtPrice  Int?      // Harga coret
+  costPrice       Int?      // Untuk hitung profit
+  sku             String?   @unique
+  stock           Int       @default(0)
+  lowStockAlert   Int       @default(5)
+  isAvailable     Boolean   @default(true)
+  isPreOrder      Boolean   @default(true)
+  preOrderDays    Int       @default(2)
+  
+  categoryId      String
+  category        Category  @relation(fields: [categoryId], references: [id])
+  
+  thumbnail       String
+  images          ProductImage[]
+  
+  nutritionInfo   Json?     // {calories, protein, carbs, fat, fiber, sugar}
+  allergens       String[]  // ["milk", "eggs"]
+  tags            String[]  // ["gluten-free", "bestseller"]
+  
+  orderItems      OrderItem[]
+  reviews         Review[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+  order     Int       @default(0)
+  products  Product[]
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ORDERS
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique  // BRW-20240215-001
+  
+  customerId      String?
+  customer        User?         @relation(fields: [customerId], references: [id])
+  customerName    String
+  email           String
+  phone           String
+  
+  deliveryAddress String
+  city            String
+  deliveryDate    DateTime
+  deliveryTime    DeliveryTime  // MORNING, AFTERNOON, EVENING
+  
+  items           OrderItem[]
+  subtotal        Int
+  discount        Int           @default(0)
+  deliveryFee     Int           @default(0)
+  totalAmount     Int
+  
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   PaymentMethod @default(BANK_TRANSFER)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentProof    String?
+  
+  notes           String?
+  internalNotes   String?       // Admin only
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  productName String  // Snapshot
+  quantity    Int
+  price       Int     // Price saat order
+  subtotal    Int
+}
+
+enum DeliveryTime {
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+enum OrderStatus {
+  PENDING      // Baru masuk
+  CONFIRMED    // Admin confirm
+  PAID         // Sudah bayar
+  PROCESSING   // Sedang dibuat
+  READY        // Siap kirim
+  DELIVERED    // Sudah sampai
+  COMPLETED    // Selesai
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  E_WALLET
+  CASH
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+// CASHFLOW & FINANCIAL
+model Cashflow {
+  id              String          @id @default(cuid())
+  type            TransactionType // INCOME, EXPENSE
+  category        String          // "Sales", "Ingredients", "Marketing"
+  description     String
+  amount          Int             // Positive = income, Negative = expense
+  
+  paymentMethod   PaymentMethod?
+  receipt         String?         // URL bukti
+  
+  transactionDate DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  notes           String?
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+model Expense {
+  id              String         @id @default(cuid())
+  category        ExpenseCategory
+  description     String
+  amount          Int
+  vendor          String?
+  invoiceNumber   String?
+  paymentMethod   PaymentMethod
+  receipt         String?
+  
+  isRecurring     Boolean        @default(false)
+  
+  paidAt          DateTime       @default(now())
+  notes           String?
+}
+
+enum ExpenseCategory {
+  INGREDIENTS   // Bahan baku
+  PACKAGING
+  UTILITIES     // Listrik, air
+  MARKETING
+  SALARY
+  RENT
+  DELIVERY
+  OTHER
+}
+
+// REVIEWS
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  customerName String
+  rating      Int      // 1-5
+  comment     String   @db.Text
+  
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
