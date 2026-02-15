@@ -13,36 +13,37 @@ export async function submitOrder(values: {
   deliveryDate: string;
   deliveryTime: DeliveryTime;
   notes?: string;
-  productId?: string;
+  items: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }) {
   try {
+    if (!values.items || values.items.length === 0) {
+      return { success: false, error: "Keranjang belanja kosong." };
+    }
+
     // 1. Generate Order Number: BRW-YYYYMMDD-XXXX
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+    
+    // Get start of today
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const count = await prisma.order.count({
       where: {
         createdAt: {
-          gte: new Date(today.setHours(0, 0, 0, 0)),
+          gte: startOfToday,
         },
       },
     });
     const orderNumber = `BRW-${dateStr}-${(count + 1).toString().padStart(3, "0")}`;
 
-    // 2. Handle Product and Pricing
-    let subtotal = 0;
-    let productName = "General Pre-Order";
-    let productPrice = 0;
-
-    if (values.productId) {
-      const product = await prisma.product.findUnique({
-        where: { id: values.productId },
-      });
-      if (product) {
-        subtotal = product.price;
-        productName = product.name;
-        productPrice = product.price;
-      }
-    }
+    // 2. Calculate Totals
+    const subtotal = values.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // 3. Create Order
     const order = await prisma.order.create({
@@ -59,15 +60,15 @@ export async function submitOrder(values: {
         totalAmount: subtotal, // For now, assume no delivery fee or discount here
         notes: values.notes,
         status: "PENDING",
-        items: values.productId ? {
-          create: {
-            productId: values.productId,
-            productName: productName,
-            quantity: 1,
-            price: productPrice,
-            subtotal: productPrice,
-          }
-        } : undefined,
+        items: {
+          create: values.items.map(item => ({
+            productId: item.id,
+            productName: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity,
+          }))
+        },
       },
     });
 
