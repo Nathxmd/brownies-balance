@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { getDashboardStats } from "@/lib/actions/admin-actions";
 
+import { RevenueChart } from "@/components/admin/RevenueChart";
+
 export default async function DashboardPage() {
   const statsData = await getDashboardStats();
 
@@ -74,10 +76,10 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4 rounded-xl border bg-card p-6 shadow-sm min-h-[400px]">
-          <h3 className="text-lg font-semibold mb-4">Revenue Chart (30 days)</h3>
-          <div className="flex items-center justify-center h-full text-muted-foreground border-2 border-dashed rounded-lg">
-            [Chart Component will be implemented with Recharts]
+        <div className="col-span-4 rounded-xl border bg-card p-6 shadow-sm flex flex-col">
+          <h3 className="text-lg font-semibold mb-6">Revenue Trend (30 Days)</h3>
+          <div className="flex-1 min-h-[300px]">
+            <RevenueChart data={statsData.revenueData} />
           </div>
         </div>
         <div className="col-span-3 rounded-xl border bg-card p-6 shadow-sm min-h-[400px]">

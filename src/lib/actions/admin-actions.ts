@@ -9,12 +9,16 @@ import { OrderStatus, PaymentStatus, UserRole } from "@prisma/client";
  */
 
 export async function getDashboardStats() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
   const [
     totalRevenue,
     totalOrders,
     pendingOrders,
     lowStockCount,
     topProducts,
+    revenueDataRaw,
   ] = await Promise.all([
     // Total Revenue (Only completed/delivered orders that are paid)
     prisma.order.aggregate({
@@ -52,8 +56,44 @@ export async function getDashboardStats() {
       _sum: { quantity: true, subtotal: true },
       orderBy: { _sum: { quantity: 'desc' } },
       take: 5
+    }),
+
+    // Revenue for the last 30 days
+    prisma.order.findMany({
+      where: {
+        paymentStatus: PaymentStatus.PAID,
+        status: { not: "CANCELLED" },
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true
+      },
+      orderBy: { createdAt: 'asc' }
     })
   ]);
+
+  // Aggregate revenue by date
+  const revenueByDate = new Map<string, number>();
+  
+  // Initialize last 30 days with 0
+  for (let i = 0; i <= 30; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    revenueByDate.set(d.toISOString().split('T')[0], 0);
+  }
+
+  // Fill in active data
+  revenueDataRaw.forEach(order => {
+    const dateKey = order.createdAt.toISOString().split('T')[0];
+    const current = revenueByDate.get(dateKey) || 0;
+    revenueByDate.set(dateKey, current + order.totalAmount);
+  });
+
+  // Convert to sorted array
+  const formattedRevenueData = Array.from(revenueByDate.entries())
+    .map(([date, amount]) => ({ date, amount }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     revenue: totalRevenue._sum.totalAmount || 0,
@@ -65,7 +105,8 @@ export async function getDashboardStats() {
       name: item.productName,
       quantity: item._sum.quantity || 0,
       totalSales: item._sum.subtotal || 0
-    }))
+    })),
+    revenueData: formattedRevenueData
   };
 }
 
