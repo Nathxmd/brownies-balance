@@ -15,8 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brownies Balance | Admin Dashboard",
-  description: "Baking healthy fudgy brownies since 2024",
+  title: {
+    template: "%s | Brownies Balance",
+    default: "Brownies Balance | Healthy Fudgy Brownies",
+  },
+  description: "Baking healthy fudgy brownies since 2024. Gourmet brownies with perfectly balanced taste.",
+  keywords: ["brownies", "healthy brownies", "fudgy brownies", "brownies balance", "kue brownies"],
 };
 
 export default function RootLayout({
