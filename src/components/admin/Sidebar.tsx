@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { signOut } from "next-auth/react";
 
 const navItems = [
   {
@@ -110,6 +111,7 @@ export function Sidebar() {
             "w-full justify-start gap-3 px-3 overflow-hidden text-red-500 hover:text-red-600 hover:bg-red-50",
             collapsed && "justify-center px-0"
           )}
+          onClick={() => signOut({ callbackUrl: "/" })}
         >
           <LogOut size={20} className="shrink-0" />
           {!collapsed && <span className="font-medium">Logout</span>}
