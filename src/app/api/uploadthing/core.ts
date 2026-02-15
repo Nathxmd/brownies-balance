@@ -4,9 +4,11 @@ const f = createUploadthing();
 
 export const ourFileRouter = {
   productImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Upload complete for userId:", metadata);
-      console.log("file url", file.url);
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url };
+    }),
+  paymentProof: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .onUploadComplete(async ({ file }) => {
       return { url: file.url };
     }),
 } satisfies FileRouter;

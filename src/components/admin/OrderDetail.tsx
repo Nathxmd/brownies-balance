@@ -17,9 +17,12 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Order, OrderItem, Product, OrderStatus, PaymentStatus } from "@prisma/client";
-import { updateOrderStatus, updatePaymentStatus } from "@/lib/actions/admin-actions";
+import { updateOrderStatus, updatePaymentStatus, updatePaymentProof } from "@/lib/actions/admin-actions";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { UploadButton } from "@/lib/uploadthing";
+import { X, Loader2, ImageIcon, ExternalLink } from "lucide-react";
+import { useState } from "react";
 
 type OrderWithItems = Order & {
   items: (OrderItem & { product: Product })[];
@@ -58,6 +61,26 @@ export function OrderDetail({ order }: OrderDetailProps) {
       toast({ title: "Payment status updated", description: `Payment is now ${status}` });
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+  };
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handlePaymentProofUpload = async (url: string) => {
+    const result = await updatePaymentProof(order.id, url);
+    if (result.success) {
+      toast({ title: "Bukti pembayaran diunggah" });
+    } else {
+      toast({ title: "Gagal mengunggah bukti", description: result.error, variant: "destructive" });
+    }
+  };
+
+  const handleRemoveProof = async () => {
+    const result = await updatePaymentProof(order.id, null);
+    if (result.success) {
+      toast({ title: "Bukti pembayaran dihapus" });
+    } else {
+      toast({ title: "Gagal menghapus bukti", variant: "destructive" });
     }
   };
 
@@ -210,6 +233,70 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 {order.paymentStatus.toLowerCase()}
               </Badge>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon size={18} /> Bukti Pembayaran
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {order.paymentProof ? (
+              <div className="space-y-4">
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border bg-zinc-50 group">
+                  <Image
+                    src={order.paymentProof}
+                    alt="Proof of payment"
+                    fill
+                    className="object-contain"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button variant="secondary" size="sm" asChild>
+                      <a href={order.paymentProof} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink size={16} className="mr-2" /> Lihat Full
+                      </a>
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleRemoveProof}>
+                      <X size={16} className="mr-2" /> Hapus
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-center text-zinc-500 font-medium italic">
+                  *Klik gambar atau tombol untuk melihat detail bukti.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 px-4 border border-dashed rounded-2xl bg-zinc-50/50">
+                <UploadButton
+                  endpoint="paymentProof"
+                  onUploadBegin={() => setIsUploading(true)}
+                  onClientUploadComplete={(res) => {
+                    setIsUploading(false);
+                    handlePaymentProofUpload(res[0].url);
+                  }}
+                  onUploadError={(error) => {
+                    setIsUploading(false);
+                    toast({
+                      title: "Upload Gagal",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }}
+                  appearance={{
+                    button: "bg-zinc-900 h-10 px-4 rounded-xl text-xs font-bold after:hidden",
+                    allowedContent: "text-[10px] uppercase font-black tracking-widest text-zinc-400 mt-2"
+                  }}
+                />
+                {isUploading && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500 font-medium">
+                    <Loader2 size={16} className="animate-spin text-orange-500" />
+                    Mengunggah...
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

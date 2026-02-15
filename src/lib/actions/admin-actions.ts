@@ -164,10 +164,28 @@ export async function updatePaymentStatus(orderId: string, status: PaymentStatus
 
     revalidatePath("/admin/dashboard");
     revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${orderId}`);
     return { success: true, order };
   } catch (error) {
     console.error("Update Payment Status Error:", error);
     return { success: false, error: "Failed to update payment status" };
+  }
+}
+
+export async function updatePaymentProof(orderId: string, url: string | null) {
+  try {
+    const order = await prisma.order.update({
+      where: { id: orderId },
+      data: { paymentProof: url }
+    });
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${orderId}`);
+    return { success: true, order };
+  } catch (error) {
+    console.error("Update Payment Proof Error:", error);
+    return { success: false, error: "Failed to update payment proof" };
   }
 }
 
@@ -196,5 +214,53 @@ export async function updateUserRole(userId: string, role: UserRole) {
   } catch (error) {
     console.error("Update User Role Error:", error);
     return { success: false, error: "Failed to update user role" };
+  }
+}
+
+/**
+ * EXPENSE MANAGEMENT
+ */
+
+export async function getExpenses() {
+  return await prisma.expense.findMany({
+    orderBy: { paidAt: "desc" }
+  });
+}
+
+import { ExpenseFormValues } from "@/lib/schemas/expense";
+
+export async function createExpense(values: ExpenseFormValues) {
+  try {
+    const expense = await prisma.expense.create({
+      data: {
+        description: values.description,
+        amount: values.amount,
+        category: values.category,
+        paymentMethod: values.paymentMethod,
+        vendor: values.vendor,
+        notes: values.notes,
+        paidAt: values.paidAt,
+      }
+    });
+
+    revalidatePath("/admin/cashflow");
+    return { success: true, expense };
+  } catch (error) {
+    console.error("Create Expense Error:", error);
+    return { success: false, error: "Failed to create expense" };
+  }
+}
+
+export async function deleteExpense(id: string) {
+  try {
+    await prisma.expense.delete({
+      where: { id }
+    });
+
+    revalidatePath("/admin/cashflow");
+    return { success: true };
+  } catch (error) {
+    console.error("Delete Expense Error:", error);
+    return { success: false, error: "Failed to delete expense" };
   }
 }
